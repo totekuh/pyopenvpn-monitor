@@ -62,6 +62,7 @@ openvpn_monitor = OpenVPNStatusMonitor(OPENVPN_STATUS_LOG_FILE)
 def track_stats(openvpn_monitor, update):
     old_clients = copy(openvpn_monitor.status.client_list)
     logging.info(f'Tracking the OpenVPN server status log for connected/disconnected entries')
+    update.message.reply_text(openvpn_monitor.get_stats_as_string())
     while True:
         if openvpn_monitor.status.client_list:
             new_clients = openvpn_monitor.status.client_list
