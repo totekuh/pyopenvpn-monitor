@@ -1,19 +1,16 @@
 #!/usr/bin/env python3.7
 
-import json
 import logging
-import os
 from copy import copy
-from datetime import datetime
 from functools import wraps
-from random import choice
 from threading import Thread
 from time import sleep
 
-from config import TOKEN, WHITELIST, OPENVPN_STATUS_LOG_FILE
 from openvpn_status import parse_status
 from telegram import ParseMode
 from telegram.ext import CommandHandler, Updater
+
+from config import OPENVPN_STATUS_LOG_FILE, TOKEN, WHITELIST
 
 
 class OpenVPNStatusMonitor:
@@ -97,7 +94,6 @@ def whitelist_only(func):
     return wrapped
 
 
-
 def show_help(update, context):
     """Send a message when the command /help is issued."""
     howto = (
@@ -108,19 +104,17 @@ def show_help(update, context):
     )
     update.message.reply_text(howto, parse_mode=ParseMode.MARKDOWN)
 
+
 # Start tracking the OpenVPN server status.
 @whitelist_only
 def start(update, context):
     """Send a message when the command /start is issued."""
     logging.info(f'{update.effective_user.username} has enabled the OpenVPN monitor')
     update.message.reply_text(
-        "Starting the OpenVPN monitor. Will contentiously check the status log for changes."
+                "Starting the OpenVPN monitor. Will contentiously check the status log for changes."
     )
     openvpn_monitor = OpenVPNStatusMonitor(OPENVPN_STATUS_LOG_FILE)
     monitor_thread = Thread(target=openvpn_monitor.track_stats, args=())
-
-
-
 
 
 # Get current statistics of the OpenVPN server.
