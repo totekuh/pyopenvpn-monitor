@@ -51,8 +51,8 @@ class OpenVPNStatusMonitor:
                 message += f'{index} - {client.common_name} is connected '
                 message += f'since {client.connected_since} '
                 message += f'from {ip_addr}'
-            message += '\n'
-            index += 1
+                message += '\n'
+                index += 1
         return message
 
 
@@ -165,6 +165,7 @@ def main():
 
     dp.add_handler(CommandHandler("help", show_help))
     dp.add_handler(CommandHandler("start", start))
+    dp.add_handler(CommandHandler("stats", stats))
     dp.add_handler(CommandHandler("stats", stats))
     dp.add_error_handler(error)
 
