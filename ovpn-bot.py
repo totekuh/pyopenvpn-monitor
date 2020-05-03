@@ -70,12 +70,15 @@ class OpenVPNStatusMonitor:
             index = 1
             for ip_addr, client in self.status.client_list.items():
                 message += f'{index} - {client.common_name} is connected '
-                f'since {client.connected_since} '
-                f'from {ip_addr}'
+                message += f'since {client.connected_since} '
+                message += f'from {ip_addr}'
             message += '\n'
             index += 1
         return message
+
+
 openvpn_monitor = OpenVPNStatusMonitor(OPENVPN_STATUS_LOG_FILE)
+
 
 def whitelist_only(func):
     @wraps(func)
@@ -148,7 +151,7 @@ def main():
     logging.basicConfig(
                 format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
                 level=logging.INFO,
-                filename="cook.log",
+                # filename="ovpn-bot.log",
     )
 
     updater = Updater(TOKEN, use_context=True)
