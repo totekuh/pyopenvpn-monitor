@@ -44,7 +44,7 @@ class OpenVPNStatusMonitor:
     def track_stats(self):
         old_clients = copy(self.status.client_list)
         logging.info(f'Tracking the OpenVPN server status log for connected/disconnected entries')
-        self.print_stats()
+        self.get_stats_as_string()
         while True:
             if self.status.client_list:
                 new_clients = self.status.client_list
@@ -62,17 +62,20 @@ class OpenVPNStatusMonitor:
                 old_clients = copy(new_clients)
                 sleep(3)
 
-    def print_stats(self):
-        logging.info(f"Status updated at {self.status.updated_at}")
+    def get_stats_as_string(self):
+        message = ''
+        message += f"Status updated at {self.status.updated_at}\n"
         client_list = self.get_connected_clients()
         if client_list:
             index = 1
             for ip_addr, client in self.status.client_list.items():
-                logging.info(f'{index} - {client.common_name} is connected '
-                             f'since {client.connected_since} '
-                             f'from {ip_addr}')
-                index += 1
-
+                message += f'{index} - {client.common_name} is connected '
+                f'since {client.connected_since} '
+                f'from {ip_addr}'
+            message += '\n'
+            index += 1
+        return message
+openvpn_monitor = OpenVPNStatusMonitor(OPENVPN_STATUS_LOG_FILE)
 
 def whitelist_only(func):
     @wraps(func)
@@ -99,7 +102,7 @@ def show_help(update, context):
     howto = (
         f"The bot contentiously parses openvpn-status.log file "
         f"and notifies you when it detects changes between checks.\n"
-        f"Use /watch to start monitoring the connection logs.\n"
+        f"Use /start to start monitoring the connection logs.\n"
         f"Use /stats to print current statistics from the OpenVPN server."
     )
     update.message.reply_text(howto, parse_mode=ParseMode.MARKDOWN)
@@ -113,7 +116,7 @@ def start(update, context):
     update.message.reply_text(
                 "Starting the OpenVPN monitor. Will contentiously check the status log for changes."
     )
-    openvpn_monitor = OpenVPNStatusMonitor(OPENVPN_STATUS_LOG_FILE)
+    global openvpn_monitor
     monitor_thread = Thread(target=openvpn_monitor.track_stats, args=())
 
 
@@ -122,6 +125,12 @@ def start(update, context):
 @whitelist_only
 def stats(update, context):
     logging.info(f'{update.effective_user.username} has requested current status from the OpenVPN monitor')
+    global openvpn_monitor
+    stats = openvpn_monitor.get_stats_as_string()
+    if stats:
+        update.message.reply_text(stats)
+    else:
+        update.message.reply_text('No stats are available')
 
 
 """
