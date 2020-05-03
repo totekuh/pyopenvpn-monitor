@@ -41,27 +41,6 @@ class OpenVPNStatusMonitor:
         else:
             return []
 
-    def track_stats(self):
-        old_clients = copy(self.status.client_list)
-        logging.info(f'Tracking the OpenVPN server status log for connected/disconnected entries')
-        self.get_stats_as_string()
-        while True:
-            if self.status.client_list:
-                new_clients = self.status.client_list
-
-                # check if someone has disconnected the server
-                for ip_addr, client in old_clients.items():
-                    if ip_addr not in new_clients.keys():
-                        logging.info(f'{client.common_name} from {ip_addr} has disconnected the server')
-
-                # check if we have a new connected client
-                for ip_addr, client in new_clients.items():
-                    if ip_addr not in old_clients.keys():
-                        logging.info(f"A new connection from {ip_addr} by {client.common_name}")
-
-                old_clients = copy(new_clients)
-                sleep(3)
-
     def get_stats_as_string(self):
         message = ''
         message += f"Status updated at {self.status.updated_at}\n"
@@ -78,6 +57,31 @@ class OpenVPNStatusMonitor:
 
 
 openvpn_monitor = OpenVPNStatusMonitor(OPENVPN_STATUS_LOG_FILE)
+
+
+def track_stats(openvpn_monitor, update):
+    old_clients = copy(openvpn_monitor.status.client_list)
+    logging.info(f'Tracking the OpenVPN server status log for connected/disconnected entries')
+    while True:
+        if openvpn_monitor.status.client_list:
+            new_clients = openvpn_monitor.status.client_list
+
+            # check if someone has disconnected the server
+            for ip_addr, client in old_clients.items():
+                if ip_addr not in new_clients.keys():
+                    message = f'{client.common_name} from {ip_addr} has disconnected the server'
+                    update.message.reply_text(message)
+                    logging.info(message)
+
+            # check if we have a new connected client
+            for ip_addr, client in new_clients.items():
+                if ip_addr not in old_clients.keys():
+                    message = f"A new connection from {ip_addr} by {client.common_name}"
+                    update.message.reply_text(message)
+                    logging.info(message)
+
+            old_clients = copy(new_clients)
+            sleep(3)
 
 
 def whitelist_only(func):
@@ -120,7 +124,8 @@ def start(update, context):
                 "Starting the OpenVPN monitor. Will contentiously check the status log for changes."
     )
     global openvpn_monitor
-    monitor_thread = Thread(target=openvpn_monitor.track_stats, args=())
+    monitor_thread = Thread(target=track_stats, args=(openvpn_monitor, update))
+    monitor_thread.start()
 
 
 # Get current statistics of the OpenVPN server.
