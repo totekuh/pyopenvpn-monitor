@@ -16,10 +16,30 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+import sys
+
 # Use os.getenv to get environment variables
 OPENVPN_STATUS_LOG_FILE = os.getenv("OPENVPN_STATUS_LOG_FILE")
 TOKEN = os.getenv("TOKEN")
-WHITELIST = os.getenv("WHITELIST").split(',')
+WHITELIST = os.getenv("WHITELIST").split(',') if os.getenv("WHITELIST") else None
+
+# Check if environment variables are set
+if not OPENVPN_STATUS_LOG_FILE:
+    print("Error: OPENVPN_STATUS_LOG_FILE environment variable is not set.")
+    sys.exit(1)
+
+if not TOKEN:
+    print("Error: TOKEN environment variable is not set.")
+    sys.exit(1)
+
+if not WHITELIST:
+    print("Error: WHITELIST environment variable is not set.")
+    sys.exit(1)
+
+# Check if OPENVPN_STATUS_LOG_FILE exists
+if not os.path.isfile(OPENVPN_STATUS_LOG_FILE):
+    print(f"Error: File {OPENVPN_STATUS_LOG_FILE} does not exist.")
+    sys.exit(1)
 
 
 class OpenVPNStatusMonitor:

@@ -49,9 +49,9 @@ Configuration of the OpenVPN Status Monitor is done via environment variables wh
 
 ```dotenv
 # .env example
-TOKEN="your_telegram_token"
-OPENVPN_STATUS_LOG_FILE="/path/to/openvpn/status.log"
-WHITELIST="whitelisted_telegram_usernames_separated_by_comma"
+TOKEN=your_telegram_token
+OPENVPN_STATUS_LOG_FILE=/path/to/openvpn/status.log
+WHITELIST=whitelisted_telegram_usernames_separated_by_comma
 ```
 
 Please note that the `OPENVPN_STATUS_LOG_FILE` environment variable refers to the OpenVPN status log file inside the Docker container. 
