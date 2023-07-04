@@ -1,8 +1,19 @@
-FROM python:3.7.7-slim-stretch
-COPY ./requirements.txt /ovpn-bot/requirements.txt
-RUN pip3 install -r /ovpn-bot/requirements.txt
+# Dockerfile
+FROM python:3.9-slim-buster
 
-COPY config.py /ovpn-bot/
-COPY ovpn-bot.py /ovpn-bot/
+RUN pip3 install --upgrade pip
 
-ENTRYPOINT python3 -u /ovpn-bot/ovpn-bot.py
+ENV APP_HOME="/app"
+
+WORKDIR $APP_HOME
+
+COPY setup.py "$APP_HOME/"
+COPY pyproject.toml "$APP_HOME/"
+COPY src/ "$APP_HOME/src/"
+COPY README.md "$APP_HOME/"
+
+COPY .env "$APP_HOME/"
+
+RUN pip3 install .
+
+ENTRYPOINT ["ovpn-monitor"]

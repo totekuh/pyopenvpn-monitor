@@ -1,6 +1,7 @@
 #!/usr/bin/env python3.7
 
 import logging
+import json
 from copy import copy
 from functools import wraps
 from threading import Thread
@@ -9,23 +10,34 @@ from time import sleep
 from openvpn_status import parse_status
 from telegram import ParseMode
 from telegram.ext import CommandHandler, Updater
+import os
 
-from config import OPENVPN_STATUS_LOG_FILE, TOKEN, WHITELIST
+from dotenv import load_dotenv
+
+load_dotenv()
+
+# Use os.getenv to get environment variables
+OPENVPN_STATUS_LOG_FILE = os.getenv("OPENVPN_STATUS_LOG_FILE")
+TOKEN = os.getenv("TOKEN")
+WHITELIST = os.getenv("WHITELIST").split(',')
 
 
 class OpenVPNStatusMonitor:
+    """Continuously monitor the status of an OpenVPN server."""
+
     def __init__(self, openvpn_status_log_file):
         self.openvpn_status_log_file = openvpn_status_log_file
         self.status = self.get_stats()
-        self.status_log_thread = \
-            Thread(target=self.get_stats_in_background, args=())
+        self.status_log_thread = Thread(target=self.get_stats_in_background, args=())
         self.status_log_thread.start()
 
     def get_stats(self):
+        """Return the current OpenVPN server stats."""
         with open(self.openvpn_status_log_file, 'r') as logfile:
             return parse_status(logfile.read())
 
     def get_stats_in_background(self):
+        """Continuously update the OpenVPN server stats in a background thread."""
         logging.info(f'Starting a new background thread to continuously track the status log file.')
         while True:
             try:
@@ -33,15 +45,17 @@ class OpenVPNStatusMonitor:
                 sleep(3)
             except Exception as e:
                 logging.error(e)
-                exit(1)
+                sleep(60)
 
     def get_connected_clients(self):
+        """Return the list of currently connected clients."""
         if self.status:
             return self.status.client_list
         else:
             return []
 
     def get_stats_as_string(self):
+        """Return the current OpenVPN server stats as a formatted string."""
         message = ''
         message += f"Status updated at {self.status.updated_at}\n"
         client_list = self.get_connected_clients()
@@ -86,12 +100,12 @@ def track_stats(openvpn_monitor, update):
 
 
 def whitelist_only(func):
+    """A decorator that restricts access to functions to only those in the whitelist."""
+
     @wraps(func)
     def wrapped(update, context, *args, **kwargs):
         user = update.effective_user
-        logging.info(
-                    f"@{user.username} ({user.id}) is trying to access a privileged command"
-        )
+        logging.info(f"@{user.username} ({user.id}) is trying to access a privileged command")
         if user.username not in WHITELIST:
             logging.warning(f"Unauthorized access denied for {user.username}.")
             text = (
@@ -116,25 +130,19 @@ def show_help(update, context):
     update.message.reply_text(howto, parse_mode=ParseMode.MARKDOWN)
 
 
-# Start tracking the OpenVPN server status.
 @whitelist_only
 def start(update, context):
-    """Send a message when the command /start is issued."""
+    """Start tracking the OpenVPN server status."""
     logging.info(f'{update.effective_user.username} has enabled the OpenVPN monitor')
-    update.message.reply_text(
-                "Starting the OpenVPN monitor. Will contentiously check the status log for changes."
-    )
-    global openvpn_monitor
+    update.message.reply_text("Starting the OpenVPN monitor. Will contentiously check the status log for changes.")
     monitor_thread = Thread(target=track_stats, args=(openvpn_monitor, update))
     monitor_thread.start()
 
 
-# Get current statistics of the OpenVPN server.
-# This includes remote client addresses and their aliases.
 @whitelist_only
 def stats(update, context):
+    """Get current statistics of the OpenVPN server."""
     logging.info(f'{update.effective_user.username} has requested current status from the OpenVPN monitor')
-    global openvpn_monitor
     stats = openvpn_monitor.get_stats_as_string()
     if stats:
         update.message.reply_text(stats)
@@ -142,12 +150,6 @@ def stats(update, context):
         update.message.reply_text('No stats are available')
 
 
-"""
-    ERROR HANDLING
-"""
-
-
-# set an errors' interceptor
 def error(update, context):
     """Log Errors caused by Updates."""
     logging.warning(f"Update {update} caused error {context.error}")
@@ -155,9 +157,8 @@ def error(update, context):
 
 def main():
     logging.basicConfig(
-                format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-                level=logging.INFO,
-                # filename="ovpn-bot.log",
+        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+        level=logging.INFO,
     )
 
     updater = Updater(TOKEN, use_context=True)
@@ -165,7 +166,6 @@ def main():
 
     dp.add_handler(CommandHandler("help", show_help))
     dp.add_handler(CommandHandler("start", start))
-    dp.add_handler(CommandHandler("stats", stats))
     dp.add_handler(CommandHandler("stats", stats))
     dp.add_error_handler(error)
 
