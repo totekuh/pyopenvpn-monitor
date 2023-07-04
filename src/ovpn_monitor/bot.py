@@ -19,7 +19,7 @@ load_dotenv()
 import sys
 
 # Use os.getenv to get environment variables
-OPENVPN_STATUS_LOG_FILE = os.getenv("OPENVPN_STATUS_LOG_FILE")
+OPENVPN_STATUS_LOG_FILE = os.getenv("CONTAINER_OPENVPN_STATUS_LOG_FILE")
 TOKEN = os.getenv("TOKEN")
 WHITELIST = os.getenv("WHITELIST").split(',') if os.getenv("WHITELIST") else None
 
@@ -40,7 +40,6 @@ if not WHITELIST:
 if not os.path.isfile(OPENVPN_STATUS_LOG_FILE):
     print(f"Error: File {OPENVPN_STATUS_LOG_FILE} does not exist.")
     sys.exit(1)
-
 
 class OpenVPNStatusMonitor:
     """Continuously monitor the status of an OpenVPN server."""
