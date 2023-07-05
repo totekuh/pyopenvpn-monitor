@@ -3,7 +3,7 @@ requires = [
     "setuptools>=42",
     "wheel",
     'python-telegram-bot',
-    'openvpn-status',
+    'openvpn-status-parser',
     'python-dotenv'
 ]
 build-backend = "setuptools.build_meta"

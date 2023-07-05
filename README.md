@@ -33,14 +33,14 @@ pip install .
 Build the Docker image.
 
 ```bash
-docker-compose build
+docker build -t pyopenvpn-monitor .
 ```
 
 
 Start the Docker container.
 
 ```bash
-docker-compose up -d
+docker run --rm -it pyopenvpn-monitor -h
 ```
 
 ## Configuration

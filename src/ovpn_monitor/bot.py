@@ -7,19 +7,19 @@ from functools import wraps
 from threading import Thread
 from time import sleep
 
-from openvpn_status import parse_status
 from telegram import ParseMode
 from telegram.ext import CommandHandler, Updater
 import os
 
 from dotenv import load_dotenv
+import copy
 
 load_dotenv()
 
 import sys
 
 # Use os.getenv to get environment variables
-OPENVPN_STATUS_LOG_FILE = os.getenv("CONTAINER_OPENVPN_STATUS_LOG_FILE")
+OPENVPN_STATUS_LOG_FILE = os.getenv("OPENVPN_STATUS_LOG_FILE")
 TOKEN = os.getenv("TOKEN")
 WHITELIST = os.getenv("WHITELIST").split(',') if os.getenv("WHITELIST") else None
 
@@ -40,82 +40,59 @@ if not WHITELIST:
 if not os.path.isfile(OPENVPN_STATUS_LOG_FILE):
     print(f"Error: File {OPENVPN_STATUS_LOG_FILE} does not exist.")
     sys.exit(1)
+from openvpn_status_parser import OpenVPNStatusParser
+
 
 class OpenVPNStatusMonitor:
-    """Continuously monitor the status of an OpenVPN server."""
+    def __init__(self, status_log_file):
+        self.status_log_file = status_log_file
+        self.parser = OpenVPNStatusParser(status_log_file)
+        self.prev_clients = self.get_clients()  # save the initial state
+        self.current_clients = copy.deepcopy(self.prev_clients)  # initialize current_clients as a copy of prev_clients
 
-    def __init__(self, openvpn_status_log_file):
-        self.openvpn_status_log_file = openvpn_status_log_file
-        self.status = self.get_stats()
-        self.status_log_thread = Thread(target=self.get_stats_in_background, args=())
-        self.status_log_thread.start()
+    def get_clients(self):
+        self.parser = OpenVPNStatusParser(self.status_log_file)
+        return {client['Common Name']: client for client in self.parser.connected_clients.values()}
 
-    def get_stats(self):
-        """Return the current OpenVPN server stats."""
-        with open(self.openvpn_status_log_file, 'r') as logfile:
-            return parse_status(logfile.read())
+    def check_for_changes(self):
+        self.parser = OpenVPNStatusParser(self.status_log_file)
+        self.current_clients = self.get_clients()  # update current_clients
+        connected = set(self.current_clients.keys()) - set(self.prev_clients.keys())
+        disconnected = set(self.prev_clients.keys()) - set(self.current_clients.keys())
 
-    def get_stats_in_background(self):
-        """Continuously update the OpenVPN server stats in a background thread."""
-        logging.info(f'Starting a new background thread to continuously track the status log file.')
-        while True:
-            try:
-                self.status = self.get_stats()
-                sleep(3)
-            except Exception as e:
-                logging.error(e)
-                sleep(60)
+        # Update the previous clients dictionary
+        self.prev_clients = copy.deepcopy(self.current_clients)
 
-    def get_connected_clients(self):
-        """Return the list of currently connected clients."""
-        if self.status:
-            return self.status.client_list
-        else:
-            return []
+        # print(self.get_clients())
+        # print(connected)
+        # print(disconnected)
 
-    def get_stats_as_string(self):
-        """Return the current OpenVPN server stats as a formatted string."""
-        message = ''
-        message += f"Status updated at {self.status.updated_at}\n"
-        client_list = self.get_connected_clients()
-        if client_list:
-            index = 1
-            for ip_addr, client in self.status.client_list.items():
-                message += f'{index} - {client.common_name} is connected '
-                message += f'since {client.connected_since} '
-                message += f'from {ip_addr}'
-                message += '\n'
-                index += 1
-        return message
+        return connected, disconnected
 
 
 openvpn_monitor = OpenVPNStatusMonitor(OPENVPN_STATUS_LOG_FILE)
 
 
-def track_stats(openvpn_monitor, update):
-    old_clients = copy(openvpn_monitor.status.client_list)
-    logging.info(f'Tracking the OpenVPN server status log for connected/disconnected entries')
-    update.message.reply_text(openvpn_monitor.get_stats_as_string())
+def boot_main_loop(openvpn_monitor: OpenVPNStatusMonitor, update):
     while True:
-        if openvpn_monitor.status.client_list:
-            new_clients = openvpn_monitor.status.client_list
+        connected, disconnected = openvpn_monitor.check_for_changes()
 
-            # check if someone has disconnected the server
-            for ip_addr, client in old_clients.items():
-                if ip_addr not in new_clients.keys():
-                    message = f'{client.common_name} from {ip_addr} has disconnected the server'
-                    update.message.reply_text(message)
-                    logging.info(message)
+        for client in connected:
+            update.message.reply_text(text=f"VPN client connected: {client}\n",
+                                           # f"Details: {details}",
+                                      parse_mode=ParseMode.MARKDOWN)
 
-            # check if we have a new connected client
-            for ip_addr, client in new_clients.items():
-                if ip_addr not in old_clients.keys():
-                    message = f"A new connection from {ip_addr} by {client.common_name}"
-                    update.message.reply_text(message)
-                    logging.info(message)
+        for client in disconnected:
+            update.message.reply_text(text=f"VPN client disconnected: {client}",
+                                      parse_mode=ParseMode.MARKDOWN)
 
-            old_clients = copy(new_clients)
-            sleep(3)
+        sleep(1)  # check every 30 seconds
+
+
+def track_stats(openvpn_monitor: OpenVPNStatusMonitor, update):
+    logging.info(f'Tracking the OpenVPN server status log for connected/disconnected entries')
+
+    boot_main_loop(openvpn_monitor, update)
 
 
 def whitelist_only(func):

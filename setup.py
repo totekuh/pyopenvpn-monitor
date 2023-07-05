@@ -24,11 +24,11 @@ setup(
         'Programming Language :: Python :: 3.9',
     ],
     keywords='openvpn, monitoring, telegram-bot',
-    python_requires='>=3.7, <4',
+    python_requires='>=3.6, <4',
     install_requires=[
         'python-telegram-bot==13.7',
-        'openvpn-status',
-        'python-dotenv'
+        'python-dotenv',
+        'openvpn-status-parser'
     ],
     packages=find_packages(where='src'),
     package_dir={'': 'src'},
